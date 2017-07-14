@@ -4,26 +4,18 @@ import { camelize, hyphenate } from './helpers';
  * Number and Boolean props are treated as strings
  * We should convert it so props will behave as intended
  * @param value
- * @param type
  * @returns {*}
  */
-export function convertAttributeValue(value, type) {
+export function convertAttributeValue(value) {
   let propsValue = value;
-  // const isBoolean = ['true', 'false'].indexOf(value) > -1;
-  // const valueParsed = parseFloat(propsValue, 10);
-  // const isNumber = !isNaN(valueParsed) && isFinite(propsValue);
-  if (type === 'Boolean') {
-    propsValue = propsValue === 'true';
-  } else if (type === 'Number') {
-    propsValue = parseFloat(propsValue, 10);
-  } else if (type === 'Object') {
-    propsValue = JSON.parse(propsValue);
-  } else if (type === 'Array') {
-    propsValue = JSON.parse(propsValue);
-  }
+  const isBoolean = ['true', 'false'].indexOf(value) > -1;
+  const valueParsed = parseFloat(propsValue, 10);
+  const isNumber = !isNaN(valueParsed) && isFinite(propsValue);
 
-  if (value === 'null') {
-    return null;
+  if (isBoolean) {
+    propsValue = propsValue === 'true';
+  } else if (isNumber) {
+    propsValue = valueParsed;
   }
 
   return propsValue;
@@ -36,27 +28,33 @@ export function convertAttributeValue(value, type) {
  */
 export function getProps(componentDefinition = {}) {
   const props = {
+    set: new Set(),
     camelCase: [],
-    hyphenate: [],
-    type: []
+    hyphenate: []
   };
 
-  if (componentDefinition.props && componentDefinition.props.length) {
-    componentDefinition.props.forEach((prop) => {
-      props.camelCase.push(camelize(prop));
+  if (componentDefinition.mixins) {
+    componentDefinition.mixins.forEach((mixin) => {
+      if (!mixin.props) return;
+      (Array.isArray(mixin.props) ? mixin.props : Object.keys(mixin.props)).forEach((propName) => {
+        props.set.add(propName);
+      });
     });
-  } else if (componentDefinition.props && typeof componentDefinition.props === 'object') {
-    for (const prop in componentDefinition.props) { // eslint-disable-line no-restricted-syntax, guard-for-in
-      props.camelCase.push(camelize(prop));
-      if (componentDefinition.props[prop].type) {
-        props.type.push(componentDefinition.props[prop].type.name);
-      } else {
-        props.type.push(componentDefinition.props[prop].name);
-      }
-    }
   }
-
-  props.camelCase.forEach((prop) => {
+  if (componentDefinition.extends && componentDefinition.extends.props) {
+    const { props: parentProps } = componentDefinition.extends;
+    (Array.isArray(parentProps) ? parentProps : Object.keys(parentProps)).forEach((propName) => {
+      props.set.add(propName);
+    });
+  }
+  if (componentDefinition.props) {
+    const compProps = componentDefinition.props;
+    (Array.isArray(compProps) ? compProps : Object.keys(compProps)).forEach((prop) => {
+      props.set.add(prop);
+    });
+  }
+  Array.from(props.set).forEach((prop) => {
+    props.camelCase.push(camelize(prop));
     props.hyphenate.push(hyphenate(prop));
   });
 
@@ -78,7 +76,12 @@ export function reactiveProps(element, props) {
         return this.__vue_custom_element__[name];
       },
       set(value) {
-        this.setAttribute(props.hyphenate[index], convertAttributeValue(value, props.type[index]));
+        if ((typeof value === 'object' || typeof value === 'function') && this.__vue_custom_element__) {
+          const propName = props.camelCase[index];
+          this.__vue_custom_element__[propName] = value;
+        } else {
+          this.setAttribute(props.hyphenate[index], convertAttributeValue(value));
+        }
       }
     });
   });
@@ -97,7 +100,7 @@ export function getPropsData(element, componentDefinition, props) {
     const value = element.attributes[name] && element.attributes[name].nodeValue;
 
     if (value !== undefined && value !== '') {
-      propsData[props.camelCase[index]] = convertAttributeValue(value, props.type[index]);
+      propsData[props.camelCase[index]] = convertAttributeValue(value);
     }
   });
 
