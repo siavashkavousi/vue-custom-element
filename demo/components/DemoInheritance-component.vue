@@ -1,21 +1,11 @@
 <template>
 <div class="card card--primary">
   <el-table :data="tableData" style="width: 100%">
-    <el-table-column prop="prop" label="Prop name">
+    <el-table-column prop="prop" label="Prop name" width="150">
     </el-table-column>
     <el-table-column prop="value" label="Value">
-      <template scope="scope">
-          <div slot="reference">
-            <strong>{{ scope.row.value }}</strong>
-          </div>
-        </template>
     </el-table-column>
-    <el-table-column prop="type" label="typeof">
-      <template scope="scope">
-          <div slot="reference">
-            <el-tag type="gray">{{ scope.row.type }}</el-tag>
-          </div>
-        </template>
+    <el-table-column prop="type" label="typeof" width="100">
     </el-table-column>
     <el-table-column prop="default" label="default">
     </el-table-column>
@@ -25,30 +15,34 @@
 
 <script>
 export default {
+  extends: {
+    name: 'extended-class',
+    props: ['fromExtended']
+  },
   mixins: [{
+    name: 'mixin-one',
     props: ['fromMixinOne']
   }, {
     props: {
+      name: 'mixin-two',
       fromMixinOne: {
         type: String,
-        default: () => 'override mixinOne by mixinTwo'
-      },
-      fromMixinTwo: {
-        type: String,
-        default: () => 'extends will be overriding this'
-      }
-    }
-  }],
-  extends: {
-    props: {
-      fromMixinTwo: {
-        type: String,
-        default: () => 'extends override of mixinTwo prop'
+        default: () => 'mixin overrides mixin-prop'
       },
       fromExtended: {
         type: String,
-        default: () => 'instance will be overriding this'
+        default: () => 'mixin overrides extended-prop'
+      },
+      fromMixinTwo: {
+        type: String,
+        default: () => 'mixin sets new prop'
       }
+    }
+  }],
+  props: {
+    fromMixinTwo: {
+      type: String,
+      default: () => 'instance overrides mixin-prop'
     }
   },
   methods: {

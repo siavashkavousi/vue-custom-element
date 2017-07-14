@@ -3,7 +3,15 @@
     <h2>Inheritance demo</h2>
 
     <div class="demo-card">
-      <demo-inheritance from-mixin-one="fromMixinOne is set via attributes"></demo-inheritance>
+      <div class="el-form-item">
+        <label class="el-form-item__label">fromMixinOne</label>
+        <div class="el-form-item__content">
+          <el-input v-model="compProps.fromMixinOne"></el-input>
+        </div>
+      </div>
+      <demo-inheritance
+        :from-mixin-one="compProps.fromMixinOne"
+      ></demo-inheritance>
     </div>
 
     <el-collapse v-model="activeNames">
@@ -45,49 +53,58 @@
       return {
         message: 'Hello Vue!',
         activeNames: ['1'],
+        compProps: {
+          fromMixinOne: 'changed via attributes'
+        },
         HTML: (
 `<demo-inheritance
-  from-mixin-one="fromMixinOne is set via attributes">
+  :from-mixin-one="fromMixinOne">
 </demo-inheritance>`
         ),
         vueTemplate: (
-`<div>
-    <h4>{{ message }}</h4>
-
-    <el-table :data="tableData">
-      <el-table-column prop="prop" label="Prop name"></el-table-column>
-      <el-table-column prop="value" label="Value"></el-table-column>
-      <el-table-column prop="type" label="typeof"></el-table-column>
-      <el-table-column prop="default" label="default"></el-table-column>
-    </el-table>
-  </div>`
+`<div class="card card--primary">
+  <el-table :data="tableData" style="width: 100%">
+    <el-table-column prop="prop" label="Prop name" width="150">
+    </el-table-column>
+    <el-table-column prop="value" label="Value">
+    </el-table-column>
+    <el-table-column prop="type" label="typeof" width="100">
+    </el-table-column>
+    <el-table-column prop="default" label="default">
+    </el-table-column>
+  </el-table>
+</div>`
         ),
         vueScript: (
   `export default {
+    extends: {
+      name: 'extended-class',
+      props: ['fromExtended']
+    },
     mixins: [{
+      name: 'mixin-one',
       props: ['fromMixinOne']
     }, {
       props: {
+        name: 'mixin-two',
         fromMixinOne: {
           type: String,
-          default: () => 'override mixinOne by mixinTwo'
-        },
-        fromMixinTwo: {
-          type: String,
-          default: () => 'extends will be overriding this'
-        }
-      }
-    }],
-    extends: {
-      props: {
-        fromMixinTwo: {
-          type: String,
-          default: () => 'extends override of mixinTwo prop'
+          default: () => 'mixin overrides mixin-prop'
         },
         fromExtended: {
           type: String,
-          default: () => 'instance will be overriding this'
+          default: () => 'mixin overrides extended-prop'
+        },
+        fromMixinTwo: {
+          type: String,
+          default: () => 'mixin sets new prop'
         }
+      }
+    }],
+    props: {
+      fromMixinTwo: {
+        type: String,
+        default: () => 'instance overrides mixin-prop'
       }
     },
     methods: {
