@@ -1,5 +1,5 @@
 /**
-  * vue-custom-element v1.2.1
+  * vue-custom-element v0.1.0
   * (c) 2017 Karol Fabjańczuk
   * @license MIT
   */
@@ -155,16 +155,19 @@ function toArray(list) {
 
 var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; };
 
-function convertAttributeValue(value) {
+function convertAttributeValue(value, type) {
   var propsValue = value;
-  var isBoolean = ['true', 'false'].indexOf(value) > -1;
-  var valueParsed = parseFloat(propsValue, 10);
-  var isNumber = !isNaN(valueParsed) && isFinite(propsValue);
 
-  if (isBoolean) {
+  if (type === 'Boolean') {
     propsValue = propsValue === 'true';
-  } else if (isNumber) {
-    propsValue = valueParsed;
+  } else if (type === 'Number') {
+    propsValue = parseFloat(propsValue, 10);
+  } else if (type === 'Object') {
+    propsValue = JSON.parse(propsValue);
+  } else if (type === 'Array') {
+    propsValue = JSON.parse(propsValue);
+  } else if (type === 'String') {
+    propsValue = JSON.parse(propsValue);
   }
 
   return propsValue;
@@ -175,7 +178,8 @@ function getProps() {
 
   var props = {
     camelCase: [],
-    hyphenate: []
+    hyphenate: [],
+    type: []
   };
 
   if (componentDefinition.props && componentDefinition.props.length) {
@@ -185,6 +189,11 @@ function getProps() {
   } else if (componentDefinition.props && _typeof(componentDefinition.props) === 'object') {
     for (var prop in componentDefinition.props) {
       props.camelCase.push(camelize(prop));
+      if (componentDefinition.props[prop].type) {
+        props.type.push(componentDefinition.props[prop].type.name);
+      } else {
+        props.type.push(componentDefinition.props[prop].name);
+      }
     }
   }
 
@@ -202,12 +211,7 @@ function reactiveProps(element, props) {
         return this.__vue_custom_element__[name];
       },
       set: function set(value) {
-        if (((typeof value === 'undefined' ? 'undefined' : _typeof(value)) === 'object' || typeof value === 'function') && this.__vue_custom_element__) {
-          var propName = props.camelCase[index];
-          this.__vue_custom_element__[propName] = value;
-        } else {
-          this.setAttribute(props.hyphenate[index], convertAttributeValue(value));
-        }
+        this.setAttribute(props.hyphenate[index], convertAttributeValue(value, props.type[index]));
       }
     });
   });
@@ -220,7 +224,7 @@ function getPropsData(element, componentDefinition, props) {
     var value = element.attributes[name] && element.attributes[name].nodeValue;
 
     if (value !== undefined && value !== '') {
-      propsData[props.camelCase[index]] = convertAttributeValue(value);
+      propsData[props.camelCase[index]] = convertAttributeValue(value, props.type[index]);
     }
   });
 
