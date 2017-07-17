@@ -20,8 +20,6 @@ export function convertAttributeValue(value, type) {
     propsValue = JSON.parse(propsValue);
   } else if (type === 'Array') {
     propsValue = JSON.parse(propsValue);
-  } else if (type === 'String') {
-    propsValue = JSON.parse(propsValue);
   }
 
   return propsValue;

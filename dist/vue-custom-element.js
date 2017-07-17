@@ -1,5 +1,5 @@
 /**
-  * vue-custom-element v0.1.0
+  * vue-custom-element v0.1.3
   * (c) 2017 Karol Fabjańczuk
   * @license MIT
   */
@@ -165,8 +165,6 @@ function convertAttributeValue(value, type) {
   } else if (type === 'Object') {
     propsValue = JSON.parse(propsValue);
   } else if (type === 'Array') {
-    propsValue = JSON.parse(propsValue);
-  } else if (type === 'String') {
     propsValue = JSON.parse(propsValue);
   }
 
