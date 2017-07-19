@@ -22,6 +22,10 @@ export function convertAttributeValue(value, type) {
     propsValue = JSON.parse(propsValue);
   }
 
+  if (value === 'null') {
+    return null;
+  }
+
   return propsValue;
 }
 
