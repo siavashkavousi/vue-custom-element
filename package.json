@@ -1,6 +1,6 @@
 {
   "name": "@siakvc/vue-custom-element",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "Custom Elements for Vue.js",
   "main": "dist/vue-custom-element.js",
   "module": "dist/vue-custom-element.esm.js",
