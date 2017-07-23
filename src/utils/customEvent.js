@@ -5,7 +5,7 @@
  * @returns {*}
  */
 export default function customEvent(eventName, detail) {
-  const params = Object.assign({ bubbles: false, cancelable: false, detail });
+  const params = { bubbles: false, cancelable: false, detail };
   let event;
   if (typeof window.CustomEvent === 'function') {
     event = new CustomEvent(eventName, params);
