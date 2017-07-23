@@ -1,5 +1,5 @@
 /**
-  * vue-custom-element v1.2.1
+  * vue-custom-element v1.2.2
   * (c) 2017 Karol Fabjańczuk
   * @license MIT
   */
@@ -276,7 +276,7 @@ function getSlots() {
 }
 
 function customEvent(eventName, detail) {
-  var params = Object.assign({ bubbles: false, cancelable: false, detail: detail });
+  var params = { bubbles: false, cancelable: false, detail: detail };
   var event = void 0;
   if (typeof window.CustomEvent === 'function') {
     event = new CustomEvent(eventName, params);
