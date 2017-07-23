@@ -1,5 +1,5 @@
 /**
-  * vue-custom-element v1.2.2
+  * vue-custom-element v1.3.0
   * (c) 2017 Karol Fabjańczuk
   * @license MIT
   */
@@ -164,38 +164,44 @@ function convertAttributeValue(value) {
   return propsValue;
 }
 
+function extractProps(collection, props) {
+  if (collection && collection.length) {
+    collection.forEach(function (prop) {
+      var camelCaseProp = camelize(prop);
+      props.camelCase.indexOf(camelCaseProp) === -1 && props.camelCase.push(camelCaseProp);
+    });
+  } else if (collection && (typeof collection === 'undefined' ? 'undefined' : _typeof(collection)) === 'object') {
+    for (var prop in collection) {
+      var camelCaseProp = camelize(prop);
+      props.camelCase.indexOf(camelCaseProp) === -1 && props.camelCase.push(camelCaseProp);
+    }
+  }
+}
+
 function getProps() {
   var componentDefinition = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
 
   var props = {
-    set: new Set(),
     camelCase: [],
     hyphenate: []
   };
 
   if (componentDefinition.mixins) {
     componentDefinition.mixins.forEach(function (mixin) {
-      if (!mixin.props) return;
-      (Array.isArray(mixin.props) ? mixin.props : Object.keys(mixin.props)).forEach(function (propName) {
-        props.set.add(propName);
-      });
+      extractProps(mixin.props, props);
     });
   }
+
   if (componentDefinition.extends && componentDefinition.extends.props) {
     var parentProps = componentDefinition.extends.props;
 
-    (Array.isArray(parentProps) ? parentProps : Object.keys(parentProps)).forEach(function (propName) {
-      props.set.add(propName);
-    });
+
+    extractProps(parentProps, props);
   }
-  if (componentDefinition.props) {
-    var compProps = componentDefinition.props;
-    (Array.isArray(compProps) ? compProps : Object.keys(compProps)).forEach(function (prop) {
-      props.set.add(prop);
-    });
-  }
-  Array.from(props.set).forEach(function (prop) {
-    props.camelCase.push(camelize(prop));
+
+  extractProps(componentDefinition.props, props);
+
+  props.camelCase.forEach(function (prop) {
     props.hyphenate.push(hyphenate(prop));
   });
 
@@ -315,7 +321,7 @@ function createVueInstance(element, Vue, componentDefinition, props, options) {
       }
 
       customEmit.apply(undefined, [element].concat(args));
-      (_proto__$$emit = this.__proto__.$emit).call.apply(_proto__$$emit, [this].concat(args));
+      this.__proto__ && (_proto__$$emit = this.__proto__.$emit).call.apply(_proto__$$emit, [this].concat(args));
     };
 
     var rootElement = void 0;
