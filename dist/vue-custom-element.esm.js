@@ -1,5 +1,5 @@
 /**
-  * vue-custom-element v1.3.0
+  * vue-custom-element v0.1.5
   * (c) 2017 Karol Fabjańczuk
   * @license MIT
   */
@@ -149,16 +149,21 @@ function toArray(list) {
 
 var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; };
 
-function convertAttributeValue(value) {
+function convertAttributeValue(value, type) {
   var propsValue = value;
-  var isBoolean = ['true', 'false'].indexOf(value) > -1;
-  var valueParsed = parseFloat(propsValue, 10);
-  var isNumber = !isNaN(valueParsed) && isFinite(propsValue);
 
-  if (isBoolean) {
+  if (type === 'Boolean') {
     propsValue = propsValue === 'true';
-  } else if (isNumber) {
-    propsValue = valueParsed;
+  } else if (type === 'Number') {
+    propsValue = parseFloat(propsValue, 10);
+  } else if (type === 'Object') {
+    propsValue = JSON.parse(propsValue);
+  } else if (type === 'Array') {
+    propsValue = JSON.parse(propsValue);
+  }
+
+  if (value === 'null') {
+    return null;
   }
 
   return propsValue;
@@ -174,6 +179,11 @@ function extractProps(collection, props) {
     for (var prop in collection) {
       var camelCaseProp = camelize(prop);
       props.camelCase.indexOf(camelCaseProp) === -1 && props.camelCase.push(camelCaseProp);
+      if (collection[prop].type) {
+        props.type.push(collection[prop].type.name);
+      } else {
+        props.type.push(collection[prop].name);
+      }
     }
   }
 }
@@ -183,7 +193,8 @@ function getProps() {
 
   var props = {
     camelCase: [],
-    hyphenate: []
+    hyphenate: [],
+    type: []
   };
 
   if (componentDefinition.mixins) {
@@ -215,12 +226,7 @@ function reactiveProps(element, props) {
         return this.__vue_custom_element__[name];
       },
       set: function set(value) {
-        if (((typeof value === 'undefined' ? 'undefined' : _typeof(value)) === 'object' || typeof value === 'function') && this.__vue_custom_element__) {
-          var propName = props.camelCase[index];
-          this.__vue_custom_element__[propName] = value;
-        } else {
-          this.setAttribute(props.hyphenate[index], convertAttributeValue(value));
-        }
+        this.setAttribute(props.hyphenate[index], convertAttributeValue(value, props.type[index]));
       }
     });
   });
@@ -233,7 +239,7 @@ function getPropsData(element, componentDefinition, props) {
     var value = element.attributes[name] && element.attributes[name].nodeValue;
 
     if (value !== undefined && value !== '') {
-      propsData[props.camelCase[index]] = convertAttributeValue(value);
+      propsData[props.camelCase[index]] = convertAttributeValue(value, props.type[index]);
     }
   });
 
@@ -396,57 +402,60 @@ function install(Vue) {
     var optionsProps = isAsyncComponent && { props: options.props || [] };
     var props = getProps(isAsyncComponent ? optionsProps : componentDefinition);
 
-    var CustomElement = registerCustomElement(tag, {
-      constructorCallback: function constructorCallback() {
-        typeof options.constructorCallback === 'function' && options.constructorCallback.call(this);
-      },
-      connectedCallback: function connectedCallback() {
-        var _this = this;
+    var CustomElement = customElements.get(tag);
+    if (customElements.get(tag) === undefined) {
+      CustomElement = registerCustomElement(tag, {
+        constructorCallback: function constructorCallback() {
+          typeof options.constructorCallback === 'function' && options.constructorCallback.call(this);
+        },
+        connectedCallback: function connectedCallback() {
+          var _this = this;
 
-        var asyncComponentPromise = isAsyncComponent && componentDefinition();
-        var isAsyncComponentPromise = asyncComponentPromise && asyncComponentPromise.then && typeof asyncComponentPromise.then === 'function';
+          var asyncComponentPromise = isAsyncComponent && componentDefinition();
+          var isAsyncComponentPromise = asyncComponentPromise && asyncComponentPromise.then && typeof asyncComponentPromise.then === 'function';
 
-        if (isAsyncComponent && !isAsyncComponentPromise) {
-          throw new Error('Async component ' + tag + ' do not returns Promise');
-        }
-        if (!this.__detached__) {
-          if (isAsyncComponentPromise) {
-            asyncComponentPromise.then(function (lazyLoadedComponent) {
-              var lazyLoadedComponentProps = getProps(lazyLoadedComponent);
-              createVueInstance(_this, Vue, lazyLoadedComponent, lazyLoadedComponentProps, options);
-            });
-          } else {
-            createVueInstance(this, Vue, componentDefinition, props, options);
+          if (isAsyncComponent && !isAsyncComponentPromise) {
+            throw new Error('Async component ' + tag + ' do not returns Promise');
           }
-        }
-
-        this.__detached__ = false;
-      },
-      disconnectedCallback: function disconnectedCallback() {
-        var _this2 = this;
-
-        this.__detached__ = true;
-        typeof options.disconnectedCallback === 'function' && options.disconnectedCallback.call(this);
-
-        setTimeout(function () {
-          if (_this2.__detached__ && _this2.__vue_custom_element__) {
-            _this2.__vue_custom_element__.$destroy(true);
+          if (!this.__detached__) {
+            if (isAsyncComponentPromise) {
+              asyncComponentPromise.then(function (lazyLoadedComponent) {
+                var lazyLoadedComponentProps = getProps(lazyLoadedComponent);
+                createVueInstance(_this, Vue, lazyLoadedComponent, lazyLoadedComponentProps, options);
+              });
+            } else {
+              createVueInstance(this, Vue, componentDefinition, props, options);
+            }
           }
-        }, options.destroyTimeout || 3000);
-      },
-      attributeChangedCallback: function attributeChangedCallback(name, oldValue, value) {
-        if (this.__vue_custom_element__ && typeof value !== 'undefined') {
-          var nameCamelCase = camelize(name);
-          typeof options.attributeChangedCallback === 'function' && options.attributeChangedCallback.call(this, name, oldValue, value);
-          this.__vue_custom_element__[nameCamelCase] = convertAttributeValue(value);
-        }
-      },
+
+          this.__detached__ = false;
+        },
+        disconnectedCallback: function disconnectedCallback() {
+          var _this2 = this;
+
+          this.__detached__ = true;
+          typeof options.disconnectedCallback === 'function' && options.disconnectedCallback.call(this);
+
+          setTimeout(function () {
+            if (_this2.__detached__ && _this2.__vue_custom_element__) {
+              _this2.__vue_custom_element__.$destroy(true);
+            }
+          }, options.destroyTimeout || 3000);
+        },
+        attributeChangedCallback: function attributeChangedCallback(name, oldValue, value) {
+          if (this.__vue_custom_element__ && typeof value !== 'undefined') {
+            var nameCamelCase = camelize(name);
+            typeof options.attributeChangedCallback === 'function' && options.attributeChangedCallback.call(this, name, oldValue, value);
+            this.__vue_custom_element__[nameCamelCase] = convertAttributeValue(value);
+          }
+        },
 
 
-      observedAttributes: props.hyphenate,
+        observedAttributes: props.hyphenate,
 
-      shadow: !!options.shadow && !!HTMLElement.prototype.attachShadow
-    });
+        shadow: !!options.shadow && !!HTMLElement.prototype.attachShadow
+      });
+    }
 
     return CustomElement;
   };
