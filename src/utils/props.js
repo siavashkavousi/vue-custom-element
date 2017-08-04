@@ -6,19 +6,45 @@ import { camelize, hyphenate } from './helpers';
  * @param value
  * @returns {*}
  */
-export function convertAttributeValue(value) {
+export function convertAttributeValue(value, type) {
   let propsValue = value;
-  const isBoolean = ['true', 'false'].indexOf(value) > -1;
-  const valueParsed = parseFloat(propsValue, 10);
-  const isNumber = !isNaN(valueParsed) && isFinite(propsValue);
-
-  if (isBoolean) {
+  // const isBoolean = ['true', 'false'].indexOf(value) > -1;
+  // const valueParsed = parseFloat(propsValue, 10);
+  // const isNumber = !isNaN(valueParsed) && isFinite(propsValue);
+  if (type === 'Boolean') {
     propsValue = propsValue === 'true';
-  } else if (isNumber) {
-    propsValue = valueParsed;
+  } else if (type === 'Number') {
+    propsValue = parseFloat(propsValue, 10);
+  } else if (type === 'Object') {
+    propsValue = JSON.parse(propsValue);
+  } else if (type === 'Array') {
+    propsValue = JSON.parse(propsValue);
+  }
+
+  if (value === 'null') {
+    return null;
   }
 
   return propsValue;
+}
+
+function extractProps(collection, props) {
+  if (collection && collection.length) {
+    collection.forEach((prop) => {
+      const camelCaseProp = camelize(prop);
+      props.camelCase.indexOf(camelCaseProp) === -1 && props.camelCase.push(camelCaseProp);
+    });
+  } else if (collection && typeof collection === 'object') {
+    for (const prop in collection) { // eslint-disable-line no-restricted-syntax, guard-for-in
+      const camelCaseProp = camelize(prop);
+      props.camelCase.indexOf(camelCaseProp) === -1 && props.camelCase.push(camelCaseProp);
+      if (collection[prop].type) {
+        props.type.push(collection[prop].type.name);
+      } else {
+        props.type.push(collection[prop].name);
+      }
+    }
+  }
 }
 
 /**
@@ -28,33 +54,27 @@ export function convertAttributeValue(value) {
  */
 export function getProps(componentDefinition = {}) {
   const props = {
-    set: new Set(),
     camelCase: [],
-    hyphenate: []
+    hyphenate: [],
+    type: []
   };
+
 
   if (componentDefinition.mixins) {
     componentDefinition.mixins.forEach((mixin) => {
-      if (!mixin.props) return;
-      (Array.isArray(mixin.props) ? mixin.props : Object.keys(mixin.props)).forEach((propName) => {
-        props.set.add(propName);
-      });
+      extractProps(mixin.props, props);
     });
   }
+
   if (componentDefinition.extends && componentDefinition.extends.props) {
     const { props: parentProps } = componentDefinition.extends;
-    (Array.isArray(parentProps) ? parentProps : Object.keys(parentProps)).forEach((propName) => {
-      props.set.add(propName);
-    });
+
+    extractProps(parentProps, props);
   }
-  if (componentDefinition.props) {
-    const compProps = componentDefinition.props;
-    (Array.isArray(compProps) ? compProps : Object.keys(compProps)).forEach((prop) => {
-      props.set.add(prop);
-    });
-  }
-  Array.from(props.set).forEach((prop) => {
-    props.camelCase.push(camelize(prop));
+
+  extractProps(componentDefinition.props, props);
+
+  props.camelCase.forEach((prop) => {
     props.hyphenate.push(hyphenate(prop));
   });
 
@@ -76,12 +96,7 @@ export function reactiveProps(element, props) {
         return this.__vue_custom_element__[name];
       },
       set(value) {
-        if ((typeof value === 'object' || typeof value === 'function') && this.__vue_custom_element__) {
-          const propName = props.camelCase[index];
-          this.__vue_custom_element__[propName] = value;
-        } else {
-          this.setAttribute(props.hyphenate[index], convertAttributeValue(value));
-        }
+        this.setAttribute(props.hyphenate[index], convertAttributeValue(value, props.type[index]));
       }
     });
   });
@@ -100,7 +115,7 @@ export function getPropsData(element, componentDefinition, props) {
     const value = element.attributes[name] && element.attributes[name].nodeValue;
 
     if (value !== undefined && value !== '') {
-      propsData[props.camelCase[index]] = convertAttributeValue(value);
+      propsData[props.camelCase[index]] = convertAttributeValue(value, props.type[index]);
     }
   });
 
