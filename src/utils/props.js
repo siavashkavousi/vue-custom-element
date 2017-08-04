@@ -38,6 +38,11 @@ function extractProps(collection, props) {
     for (const prop in collection) { // eslint-disable-line no-restricted-syntax, guard-for-in
       const camelCaseProp = camelize(prop);
       props.camelCase.indexOf(camelCaseProp) === -1 && props.camelCase.push(camelCaseProp);
+      if (collection[prop].type) {
+        props.type.push(collection[prop].type.name);
+      } else {
+        props.type.push(collection[prop].name);
+      }
     }
   }
 }
@@ -50,7 +55,8 @@ function extractProps(collection, props) {
 export function getProps(componentDefinition = {}) {
   const props = {
     camelCase: [],
-    hyphenate: []
+    hyphenate: [],
+    type: []
   };
 
 
