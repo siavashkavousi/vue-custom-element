@@ -29,7 +29,7 @@ export function getSlots(children = [], createElement) {
       if (child.nodeValue.trim()) {
         slots.push(createElement('span', child.nodeValue));
       }
-    } else {
+    } else if (child.nodeName !== '#comment') {
       const attributes = getAttributes(child);
       const elementOptions = {
         attrs: attributes,

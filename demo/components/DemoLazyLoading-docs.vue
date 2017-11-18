@@ -23,9 +23,7 @@
 
         <p>Instead of component object we will use function with returned Promise. You can use Webpack's <code>require.ensure()</code> or any other async method to load component.</p>
 
-        <p>One note - Custom Elements v1 spec require defining observed props during registration.
-          That's why if you omit them, attributes won't be reactive, and changing them from outside (HTML attributes or JavaScript) won't work.
-        This also concerns props added by <code>mixins</code> and <code>extends</code></p>
+        <p>One note - Custom Elements v1 spec require defining observed props during registration. That's why if you omit them, attributes won't be reactive, and changing them from outside (HTML attributes or JavaScript) won't work. This also concerns props added by <code>mixins</code> and <code>extends</code></p>
       </el-collapse-item>
       <el-collapse-item title="Custom Element HTML" name="2">
         <pre><code class="language-html">
@@ -46,7 +44,7 @@
       <el-collapse-item title="JavaScript - register with Vue-custom-element" name="4">
         <pre><code class="language-javascript">
 Vue.customElement('demo-lazy-loading', () => new Promise((resolve) => {
-  require(['path/to/lazy-loaded-component'], resolve);
+  require(['path/to/lazy-loaded-component'], (lazyComponent) => resolve(lazyComponent.default)));
 }), { props: ['prop'] });
         </code></pre>
       </el-collapse-item>
@@ -96,7 +94,7 @@ Vue.customElement('demo-lazy-loading', () => new Promise((resolve) => {
     methods: {
       registerCustomElement() {
         Vue.customElement('demo-lazy-loading', () => new Promise((resolve) => {
-          require(['demo/components/DemoLazyLoading-component'], resolve); // eslint-disable-line
+          require(['demo/components/DemoLazyLoading-component'], (lazyComponent) => resolve(lazyComponent.default)); // eslint-disable-line
         }), { props: ['prop'] });
       },
       addElement() {

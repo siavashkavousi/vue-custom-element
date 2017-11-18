@@ -12,7 +12,7 @@
       <el-table-column
         prop="value"
         label="Value">
-        <template scope="scope">
+        <template slot-scope="scope">
           <div slot="reference">
             <strong>{{ scope.row.value }}</strong>
           </div>
@@ -21,7 +21,7 @@
       <el-table-column
         prop="type"
         label="typeof">
-        <template scope="scope">
+        <template slot-scope="scope">
           <div slot="reference">
             <el-tag type="gray">{{ scope.row.type }}</el-tag>
           </div>

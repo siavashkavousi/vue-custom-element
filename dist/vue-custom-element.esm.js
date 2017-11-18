@@ -1,5 +1,5 @@
 /**
-  * vue-custom-element v0.1.5
+  * vue-custom-element v1.4.2
   * (c) 2017 Karol Fabjańczuk
   * @license MIT
   */
@@ -15,7 +15,7 @@ function setPrototypeOf(obj, proto) {
   return obj;
 }
 
-var index = setPrototypeOf.bind(Object);
+var setPrototypeOf_1 = setPrototypeOf.bind(Object);
 
 function isES2015() {
   if (typeof Symbol === 'undefined' || typeof Reflect === 'undefined') return false;
@@ -149,21 +149,16 @@ function toArray(list) {
 
 var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; };
 
-function convertAttributeValue(value, type) {
+function convertAttributeValue(value) {
   var propsValue = value;
+  var isBoolean = ['true', 'false'].indexOf(value) > -1;
+  var valueParsed = parseFloat(propsValue, 10);
+  var isNumber = !isNaN(valueParsed) && isFinite(propsValue);
 
-  if (type === 'Boolean') {
+  if (isBoolean) {
     propsValue = propsValue === 'true';
-  } else if (type === 'Number') {
-    propsValue = parseFloat(propsValue, 10);
-  } else if (type === 'Object') {
-    propsValue = JSON.parse(propsValue);
-  } else if (type === 'Array') {
-    propsValue = JSON.parse(propsValue);
-  }
-
-  if (value === 'null') {
-    return null;
+  } else if (isNumber) {
+    propsValue = valueParsed;
   }
 
   return propsValue;
@@ -179,11 +174,6 @@ function extractProps(collection, props) {
     for (var prop in collection) {
       var camelCaseProp = camelize(prop);
       props.camelCase.indexOf(camelCaseProp) === -1 && props.camelCase.push(camelCaseProp);
-      if (collection[prop].type) {
-        props.type.push(collection[prop].type.name);
-      } else {
-        props.type.push(collection[prop].name);
-      }
     }
   }
 }
@@ -193,8 +183,7 @@ function getProps() {
 
   var props = {
     camelCase: [],
-    hyphenate: [],
-    type: []
+    hyphenate: []
   };
 
   if (componentDefinition.mixins) {
@@ -226,7 +215,12 @@ function reactiveProps(element, props) {
         return this.__vue_custom_element__[name];
       },
       set: function set(value) {
-        this.setAttribute(props.hyphenate[index], convertAttributeValue(value, props.type[index]));
+        if (((typeof value === 'undefined' ? 'undefined' : _typeof(value)) === 'object' || typeof value === 'function') && this.__vue_custom_element__) {
+          var propName = props.camelCase[index];
+          this.__vue_custom_element__[propName] = value;
+        } else {
+          this.setAttribute(props.hyphenate[index], convertAttributeValue(value));
+        }
       }
     });
   });
@@ -236,10 +230,13 @@ function getPropsData(element, componentDefinition, props) {
   var propsData = componentDefinition.propsData || {};
 
   props.hyphenate.forEach(function (name, index) {
-    var value = element.attributes[name] && element.attributes[name].nodeValue;
+    var elementAttribute = element.attributes[name];
+    var propCamelCase = props.camelCase[index];
 
-    if (value !== undefined && value !== '') {
-      propsData[props.camelCase[index]] = convertAttributeValue(value, props.type[index]);
+    if ((typeof elementAttribute === 'undefined' ? 'undefined' : _typeof(elementAttribute)) === 'object' && !(elementAttribute instanceof Attr)) {
+      propsData[propCamelCase] = elementAttribute;
+    } else if (elementAttribute instanceof Attr && elementAttribute.value) {
+      propsData[propCamelCase] = convertAttributeValue(elementAttribute.value);
     }
   });
 
@@ -266,7 +263,7 @@ function getSlots() {
       if (child.nodeValue.trim()) {
         slots.push(createElement('span', child.nodeValue));
       }
-    } else {
+    } else if (child.nodeName !== '#comment') {
       var attributes = getAttributes(child);
       var elementOptions = {
         attrs: attributes,
@@ -310,25 +307,34 @@ function customEmit(element, eventName) {
 
 function createVueInstance(element, Vue, componentDefinition, props, options) {
   if (!element.__vue_custom_element__) {
+    var beforeCreate = function beforeCreate() {
+      this.$emit = function emit() {
+        var _proto__$$emit;
+
+        for (var _len = arguments.length, args = Array(_len), _key = 0; _key < _len; _key++) {
+          args[_key] = arguments[_key];
+        }
+
+        customEmit.apply(undefined, [element].concat(args));
+        this.__proto__ && (_proto__$$emit = this.__proto__.$emit).call.apply(_proto__$$emit, [this].concat(args));
+      };
+    };
+
     var ComponentDefinition = Vue.util.extend({}, componentDefinition);
     var propsData = getPropsData(element, ComponentDefinition, props);
     var vueVersion = Vue.version && parseInt(Vue.version.split('.')[0], 10) || 0;
 
-    var ctorOptions = {};
-    if (ComponentDefinition._Ctor) {
-      ctorOptions = ComponentDefinition._Ctor[0].options;
-    }
-    ComponentDefinition.methods = ctorOptions.methods = ComponentDefinition.methods || {};
-    ComponentDefinition.methods.$emit = ctorOptions.methods.$emit = function emit() {
-      var _proto__$$emit;
-
-      for (var _len = arguments.length, args = Array(_len), _key = 0; _key < _len; _key++) {
-        args[_key] = arguments[_key];
+    if (ComponentDefinition._compiled) {
+      var ctorOptions = {};
+      if (ComponentDefinition._Ctor) {
+        ctorOptions = ComponentDefinition._Ctor[0].options;
       }
-
-      customEmit.apply(undefined, [element].concat(args));
-      this.__proto__ && (_proto__$$emit = this.__proto__.$emit).call.apply(_proto__$$emit, [this].concat(args));
-    };
+      ComponentDefinition.beforeCreate = ComponentDefinition.beforeCreate || [];
+      ComponentDefinition.beforeCreate.push(beforeCreate);
+      ctorOptions.beforeCreate = ComponentDefinition.beforeCreate;
+    } else {
+      ComponentDefinition.beforeCreate = beforeCreate;
+    }
 
     var rootElement = void 0;
 
@@ -402,60 +408,57 @@ function install(Vue) {
     var optionsProps = isAsyncComponent && { props: options.props || [] };
     var props = getProps(isAsyncComponent ? optionsProps : componentDefinition);
 
-    var CustomElement = customElements.get(tag);
-    if (customElements.get(tag) === undefined) {
-      CustomElement = registerCustomElement(tag, {
-        constructorCallback: function constructorCallback() {
-          typeof options.constructorCallback === 'function' && options.constructorCallback.call(this);
-        },
-        connectedCallback: function connectedCallback() {
-          var _this = this;
+    var CustomElement = registerCustomElement(tag, {
+      constructorCallback: function constructorCallback() {
+        typeof options.constructorCallback === 'function' && options.constructorCallback.call(this);
+      },
+      connectedCallback: function connectedCallback() {
+        var _this = this;
 
-          var asyncComponentPromise = isAsyncComponent && componentDefinition();
-          var isAsyncComponentPromise = asyncComponentPromise && asyncComponentPromise.then && typeof asyncComponentPromise.then === 'function';
+        var asyncComponentPromise = isAsyncComponent && componentDefinition();
+        var isAsyncComponentPromise = asyncComponentPromise && asyncComponentPromise.then && typeof asyncComponentPromise.then === 'function';
 
-          if (isAsyncComponent && !isAsyncComponentPromise) {
-            throw new Error('Async component ' + tag + ' do not returns Promise');
+        if (isAsyncComponent && !isAsyncComponentPromise) {
+          throw new Error('Async component ' + tag + ' do not returns Promise');
+        }
+        if (!this.__detached__) {
+          if (isAsyncComponentPromise) {
+            asyncComponentPromise.then(function (lazyLoadedComponent) {
+              var lazyLoadedComponentProps = getProps(lazyLoadedComponent);
+              createVueInstance(_this, Vue, lazyLoadedComponent, lazyLoadedComponentProps, options);
+            });
+          } else {
+            createVueInstance(this, Vue, componentDefinition, props, options);
           }
-          if (!this.__detached__) {
-            if (isAsyncComponentPromise) {
-              asyncComponentPromise.then(function (lazyLoadedComponent) {
-                var lazyLoadedComponentProps = getProps(lazyLoadedComponent);
-                createVueInstance(_this, Vue, lazyLoadedComponent, lazyLoadedComponentProps, options);
-              });
-            } else {
-              createVueInstance(this, Vue, componentDefinition, props, options);
-            }
+        }
+
+        this.__detached__ = false;
+      },
+      disconnectedCallback: function disconnectedCallback() {
+        var _this2 = this;
+
+        this.__detached__ = true;
+        typeof options.disconnectedCallback === 'function' && options.disconnectedCallback.call(this);
+
+        setTimeout(function () {
+          if (_this2.__detached__ && _this2.__vue_custom_element__) {
+            _this2.__vue_custom_element__.$destroy(true);
           }
-
-          this.__detached__ = false;
-        },
-        disconnectedCallback: function disconnectedCallback() {
-          var _this2 = this;
-
-          this.__detached__ = true;
-          typeof options.disconnectedCallback === 'function' && options.disconnectedCallback.call(this);
-
-          setTimeout(function () {
-            if (_this2.__detached__ && _this2.__vue_custom_element__) {
-              _this2.__vue_custom_element__.$destroy(true);
-            }
-          }, options.destroyTimeout || 3000);
-        },
-        attributeChangedCallback: function attributeChangedCallback(name, oldValue, value) {
-          if (this.__vue_custom_element__ && typeof value !== 'undefined') {
-            var nameCamelCase = camelize(name);
-            typeof options.attributeChangedCallback === 'function' && options.attributeChangedCallback.call(this, name, oldValue, value);
-            this.__vue_custom_element__[nameCamelCase] = convertAttributeValue(value);
-          }
-        },
+        }, options.destroyTimeout || 3000);
+      },
+      attributeChangedCallback: function attributeChangedCallback(name, oldValue, value) {
+        if (this.__vue_custom_element__ && typeof value !== 'undefined') {
+          var nameCamelCase = camelize(name);
+          typeof options.attributeChangedCallback === 'function' && options.attributeChangedCallback.call(this, name, oldValue, value);
+          this.__vue_custom_element__[nameCamelCase] = convertAttributeValue(value);
+        }
+      },
 
 
-        observedAttributes: props.hyphenate,
+      observedAttributes: props.hyphenate,
 
-        shadow: !!options.shadow && !!HTMLElement.prototype.attachShadow
-      });
-    }
+      shadow: !!options.shadow && !!HTMLElement.prototype.attachShadow
+    });
 
     return CustomElement;
   };

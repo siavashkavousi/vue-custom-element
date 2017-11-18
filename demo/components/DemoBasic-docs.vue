@@ -3,7 +3,7 @@
     <h2>Basic demo</h2>
 
     <div class="demo-card">
-      <demo-basic prop1="1" prop2="example text" prop3="true" long-prop-name="long name"></demo-basic>
+      <demo-basic prop1="1" prop2="example text" prop3="true" long-prop-name="long name"><!-- Some comments --></demo-basic>
     </div>
 
     <el-collapse v-model="activeNames">

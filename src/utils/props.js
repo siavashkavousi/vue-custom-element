@@ -96,7 +96,12 @@ export function reactiveProps(element, props) {
         return this.__vue_custom_element__[name];
       },
       set(value) {
-        this.setAttribute(props.hyphenate[index], convertAttributeValue(value, props.type[index]));
+        if ((typeof value === 'object' || typeof value === 'function') && this.__vue_custom_element__) {
+          const propName = props.camelCase[index];
+          this.__vue_custom_element__[propName] = value;
+        } else {
+          this.setAttribute(props.hyphenate[index], convertAttributeValue(value, props.type[index])); // eslint-disable-line
+        }
       }
     });
   });
@@ -112,10 +117,13 @@ export function getPropsData(element, componentDefinition, props) {
   const propsData = componentDefinition.propsData || {};
 
   props.hyphenate.forEach((name, index) => {
-    const value = element.attributes[name] && element.attributes[name].nodeValue;
+    const elementAttribute = element.attributes[name];
+    const propCamelCase = props.camelCase[index];
 
-    if (value !== undefined && value !== '') {
-      propsData[props.camelCase[index]] = convertAttributeValue(value, props.type[index]);
+    if (typeof elementAttribute === 'object' && !(elementAttribute instanceof Attr)) {
+      propsData[propCamelCase] = elementAttribute;
+    } else if (elementAttribute instanceof Attr && elementAttribute.value) {
+      propsData[propCamelCase] = convertAttributeValue(elementAttribute.value, props.type[index]);
     }
   });
 

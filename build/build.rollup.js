@@ -35,6 +35,7 @@ build([
   },
   {
     dest: resolve('dist/vue-custom-element.esm.js'),
+    format: 'es',
     env: 'development'
   }
 ].map(genConfig))
@@ -56,11 +57,11 @@ function build (builds) {
 
 function genConfig (opts) {
   const config = {
-    entry: resolve('src/vue-custom-element.js'),
-    dest: opts.dest,
+    input: resolve('src/vue-custom-element.js'),
+    output: opts.dest,
     format: opts.format,
     banner,
-    moduleName: 'VueCustomElement',
+    name: 'VueCustomElement',
     plugins: [
       node(),
       cjs(),
@@ -81,21 +82,18 @@ function genConfig (opts) {
 }
 
 function buildEntry (config) {
-  const isProd = /min\.js$/.test(config.dest)
+  const isProd = /min\.js$/.test(config.output)
   return rollup.rollup(config).then(bundle => {
-    const code = bundle.generate(config).code
-    if (isProd) {
-      var minified = (config.banner ? config.banner + '\n' : '') + uglify.minify(code, {
-          fromString: true,
-          output: {
-            screw_ie8: true,
-            ascii_only: true
-          }
-        }).code
-      return write(config.dest, minified, true)
-    } else {
-      return write(config.dest, code)
-    }
+    bundle.generate(config)
+      .then(({ code }) => {
+        if (isProd) {
+          var minified = (config.banner ? config.banner + '\n' : '') + uglify.minify(code, {}).code
+          return write(config.output, minified, true)
+        } else {
+          return write(config.output, code)
+        }
+      })
+      .catch((e) => console.log(e));
   })
 }
 
